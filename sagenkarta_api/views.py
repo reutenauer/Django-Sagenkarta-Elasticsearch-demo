@@ -1,14 +1,52 @@
 from django.http import JsonResponse
-import requests, json
+import requests, json, sys
+
+def getDocument(request, documentId):
+	response = requests.get('http://localhost:9200/sagenkarta/legend/'+documentId)
+	return JsonResponse(response.json());
 
 def getDocuments(request):
 	# Elasticsearch query object
-	data = {
-		"query": {
-			"term": {
-				"title": "spöken"
+	if ('search' in request.GET) :
+		data = {
+			"query": {
+				"bool": {
+					"should": [
+						{
+							"match": {
+								"type": "tryckt"
+							}
+						},
+						{
+							"match": {
+								"type": "arkiv"
+							}
+						}
+					],
+					"must": [
+						{
+							"bool": {
+								"should": [
+									{
+										"match": {
+											"text": request.GET['search']
+										}
+									},
+									{
+										"match": {
+											"text": request.GET['search']
+										}
+									}
+								]
+							}
+						}
+					]
+				}
 			}
 		}
-	}
-	response = requests.post('http://localhost:9200/sagenkarta/legend/_search', data=json.dumps(data))
+	else :
+		data = {};
+
+	response = requests.get('http://localhost:9200/sagenkarta/legend/_search', data=json.dumps(data))
+	
 	return JsonResponse(response.json());
