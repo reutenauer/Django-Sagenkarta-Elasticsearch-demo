@@ -17,6 +17,7 @@ from django.conf.urls import include, url
 from django.contrib import admin
 
 urlpatterns = [
+    url(r'^sagenkarta/es/', include('sagenkarta_es_api.urls')),
     url(r'^sagenkarta/', include('sagenkarta_api.urls')),
     url(r'^admin/', admin.site.urls),
 ]
