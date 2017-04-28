@@ -46,6 +46,7 @@ Tar inn request object från Django och Elasticsearch dickionary och leverar res
 
 Exempel:
 ```python
+# Endpoint /urls/?[params]
 # url(r'^types/', views.getTypes, name='getTypes')
 # Aggregate types (arkiv, tryckt, register, inspelning, ...)
 
