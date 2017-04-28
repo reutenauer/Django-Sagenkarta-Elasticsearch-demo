@@ -1,8 +1,14 @@
 from django.conf.urls import url
-
+from rest_framework.schemas import get_schema_view
+from rest_framework_swagger.views import get_swagger_view
+from rest_framework_swagger.renderers import SwaggerUIRenderer, OpenAPIRenderer
 from . import views
 
+schema_view = get_schema_view(title='Users API', renderer_classes=[OpenAPIRenderer, SwaggerUIRenderer])
+
 urlpatterns = [
+	url(r'^$', schema_view),
+
 	#	kategorier: agg
 	#	socken: agg
 	#	topics: agg
@@ -27,10 +33,7 @@ urlpatterns = [
 	url(r'^collection_years/', views.getCollectionYears, name='getCollectionYears'),
 
 	# aggregate födelseår
-	url(r'^collectors_birth_years/', views.getCollectorsBirthYears, name='getCollectorsBirthYears'),
-
-	# aggregate födelseår
-	url(r'^informants_birth_years/', views.getInformantsBirthYears, name='getInformantsBirthYears'),
+	url(r'^birth_years/', views.getBirthYears, name='getBirthYears'),
 
 	# aggregate kategorier
 	url(r'^categories/', views.getCategories, name='getCategories'),
@@ -55,6 +58,12 @@ urlpatterns = [
 
 	# aggregate upptäcknare
 	url(r'^collectors/', views.getCollectors, name='getCollectors'),
+
+	# aggregate kön
+	url(r'^gender/', views.getGender, name='getGender'),
+
+	# aggregate kön
+	url(r'^gender/', views.getGender, name='getGender'),
 
 	url(r'^document/(?P<documentId>[^/]+)/$', views.getDocument, name='getDocument'),
 ]

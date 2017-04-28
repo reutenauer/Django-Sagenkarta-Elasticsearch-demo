@@ -93,7 +93,7 @@ def createQuery(request):
 		for type in typeStrings:
 			typeShouldBool['bool']['should'].append({
 				'match': {
-					'type': type
+					'materialtype': type
 				}
 			})
 		query['bool']['must'].append(typeShouldBool)
@@ -318,6 +318,11 @@ def getDocument(request, documentId):
 	return jsonResponse
 
 def getTopics(request):
+	if ('count' in request.GET):
+		count = request.GET['count']
+	else:
+		count = 100
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -335,11 +340,21 @@ def getTopics(request):
 							'data': {
 								'terms': {
 									'field': 'topics.terms.term',
-									'size': 100
+									'size': count
 								},
 								'aggs': {
 									'parent_doc_count': {
 										'reverse_nested': {}
+									},
+									'probability_avg': {
+										'avg': {
+											'field': 'topics.terms.probability'
+										}
+									},
+									'probability_max': {
+										'max': {
+											'field': 'topics.terms.probability'
+										}
 									}
 								}
 							}
@@ -354,6 +369,11 @@ def getTopics(request):
 	return esQueryResponse
 
 def getTitleTopics(request):
+	if ('count' in request.GET):
+		count = request.GET['count']
+	else:
+		count = 100
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -371,11 +391,21 @@ def getTitleTopics(request):
 							'data': {
 								'terms': {
 									'field': 'title_topics.terms.term',
-									'size': 100
+									'size': count
 								},
 								'aggs': {
 									'parent_doc_count': {
 										'reverse_nested': {}
+									},
+									'probability_avg': {
+										'avg': {
+											'field': 'title_topics.terms.probability'
+										}
+									},
+									'probability_max': {
+										'max': {
+											'field': 'title_topics.terms.probability'
+										}
 									}
 								}
 							}
@@ -409,12 +439,12 @@ def getCollectionYears(request):
 	esQueryResponse = esQuery(request, query)
 	return esQueryResponse
 
-def getBirthYears(request, relation):
+def getBirthYears(request):
 	query = {
 		'query': createQuery(request),
 		'size': 0,
 		'aggs': {
-			'data': {
+			'collectors': {
 				'nested': {
 					'path': 'persons'
 				},
@@ -422,7 +452,7 @@ def getBirthYears(request, relation):
 					'data': {
 						'filter': {
 							'term': {
-								'persons.relation': relation
+								'persons.relation': 'collector'
 							}
 						},
 						'aggs': {
@@ -438,18 +468,53 @@ def getBirthYears(request, relation):
 						}
 					}
 				}
+			},
+			'informants': {
+				'nested': {
+					'path': 'persons'
+				},
+				'aggs': {
+					'data': {
+						'filter': {
+							'term': {
+								'persons.relation': 'informant'
+							}
+						},
+						'aggs': {
+							'data': {
+								'terms': {
+									'field': 'persons.birth_year',
+									'size': 10000,
+									'order': {
+										'_term': 'asc'
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			'data': {
+				'nested': {
+					'path': 'persons'
+				},
+				'aggs': {
+					'data': {
+						'terms': {
+							'field': 'persons.birth_year',
+							'size': 10000,
+							'order': {
+								'_term': 'asc'
+							}
+						}
+					}
+				}
 			}
 		}
 	}
 
 	esQueryResponse = esQuery(request, query)
 	return esQueryResponse
-
-def getCollectorsBirthYears(request):
-	return getBirthYears(request, 'collector')
-
-def getInformantsBirthYears(request):
-	return getBirthYears(request, 'informant')
 
 def getCategories(request):
 	query = {
@@ -489,7 +554,7 @@ def getTypes(request):
 		'aggs': {
 			'data': {
 				'terms': {
-					'field': 'type',
+					'field': 'materialtype',
 					'size': 10000,
 					'order': {
 						'_term': 'asc'
@@ -803,6 +868,86 @@ def getInformants(request):
 
 def getCollectors(request):
 	return getRelatedPersons(request, 'collector')
+
+
+def getGender(request):
+	query = {
+		'query': createQuery(request),
+		'size': 0,
+		'aggs': {
+			'collectors': {
+				'nested': {
+					'path': 'persons'
+				},
+				'aggs': {
+					'data': {
+						'filter': {
+							'term': {
+								'persons.relation': 'collector'
+							}
+						},
+						'aggs': {
+							'data': {
+								'terms': {
+									'field': 'persons.gender',
+									'size': 10000,
+									'order': {
+										'_term': 'asc'
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			'informants': {
+				'nested': {
+					'path': 'persons'
+				},
+				'aggs': {
+					'data': {
+						'filter': {
+							'term': {
+								'persons.relation': 'informant'
+							}
+						},
+						'aggs': {
+							'data': {
+								'terms': {
+									'field': 'persons.gender',
+									'size': 10000,
+									'order': {
+										'_term': 'asc'
+									}
+								}
+							}
+						}
+					}
+				}
+			},
+			'data': {
+				'nested': {
+					'path': 'persons'
+				},
+				'aggs': {
+					'data': {
+						'terms': {
+							'field': 'persons.gender',
+							'size': 10000,
+							'order': {
+								'_term': 'asc'
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	esQueryResponse = esQuery(request, query)
+	return esQueryResponse
+
+
 
 
 def getDocuments(request):
