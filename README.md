@@ -46,7 +46,12 @@ Tar inn request object från Django och Elasticsearch dickionary och leverar res
 
 Exempel:
 ```python
+# url(r'^types/', views.getTypes, name='getTypes')
+# Aggregate types (arkiv, tryckt, register, inspelning, ...)
+
 def getTypes(request):
+	# Elasticsearch aggregation query
+	# createQuery bygger upp själva query dictionary baserad på URL paramsträng
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -63,6 +68,9 @@ def getTypes(request):
 		}
 	}
 
+	# Hämtar respons från Elasticsearch
 	esQueryResponse = esQuery(request, query)
+	
+	# Leverar ES respons som JSON
 	return esQueryResponse
   ```
