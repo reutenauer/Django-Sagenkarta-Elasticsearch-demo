@@ -11,3 +11,11 @@ Koden för API:et finns i `sagenkarta_api/urls.py` och `sagenkarta_api/views.py`
 
 ## Hämta enda dokument
 `[HOST]/sagenkarta/document/[DOC_ID]`
+
+## sagenkarta_es_api
+
+`def createQuery(request)`
+Tar inn request object från Django. Bygger upp Elasticsearch query.
+Giltiga params:
+- collection_years=[från,till]
+-
