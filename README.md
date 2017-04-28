@@ -6,11 +6,37 @@ Applicationen startas via `python manage.py runserver`.
 
 Koden för API:et finns i `sagenkarta_api/urls.py` och `sagenkarta_api/views.py`
 
-## Hämta documenter
-`[HOST]/sagenkarta/documents/`. Enkel sökning kan utföras med `[HOST]/sagenkarta/documents/**?search=häst**`
+## Endpoints
 
-## Hämta enda dokument
-`[HOST]/sagenkarta/document/[DOC_ID]`
+documents/?[params]
+
+topics/?[params]
+
+title_topics/?[params]
+
+collection_years/?[params]
+
+birth_years/?[params]
+
+categories/?[params]
+
+types/?[params]
+
+socken/?[params]
+
+harad/?[params]
+
+landskap/?[params]
+
+persons/?[params]
+
+informants/?[params]
+
+collectors/?[params]
+
+gender/?[params]
+
+document/?[id]
 
 ## sagenkarta_es_api
 
