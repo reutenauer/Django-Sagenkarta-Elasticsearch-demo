@@ -65,5 +65,10 @@ urlpatterns = [
 	# aggregate kön
 	url(r'^gender/', views.getGender, name='getGender'),
 
+	# hämta similar document
+	url(r'^similar/(?P<documentId>[^/]+)/$', views.getSimilar, name='getSimilar'),
+
+	# aggregate titlar
+
 	url(r'^document/(?P<documentId>[^/]+)/$', views.getDocument, name='getDocument'),
 ]

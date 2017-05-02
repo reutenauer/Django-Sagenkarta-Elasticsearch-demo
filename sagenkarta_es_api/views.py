@@ -14,11 +14,14 @@ def createQuery(request):
 	#	insamlingsår (från och till) X
 	#	insamlingsort (sockennamn, socken-id, harad, landskap, bounding box, ...)
 
-	#	person relation
+	#	person relation X
+	#	namn X
 	#	födelseår
-	#	namn
-	#	kön
+	#	kön X
 	#	födelseort
+
+	# mögulegt að leita eftir 'svart' en ekki 'svarta'
+	# exact leit 'den svarta hunden' : phrase leit
 
 	if (len(request.GET) > 0):
 		query = {
@@ -61,6 +64,14 @@ def createQuery(request):
 					]
 				}
 			})
+
+
+	if ('phrase' in request.GET):
+		query['bool']['must'].append({
+			'match_phrase': {
+				'text': request.GET['phrase']
+			}
+		})
 
 
 	if ('category' in request.GET):
@@ -204,6 +215,34 @@ def createQuery(request):
 		query['bool']['must'].append(personShouldBool)
 
 
+	if ('gender' in request.GET):
+		personShouldBool = {
+			'nested': {
+				'path': 'persons',
+				'query': {
+					'bool': {
+						'must': [
+							{
+								'match': {
+									'persons.gender': request.GET['gender']
+								}
+							}
+						]
+					}
+				}
+			}
+		}
+
+		if ('person_relation' in request.GET):
+			personShouldBool['nested']['query']['bool']['must'].append({
+				'match': {
+					'persons.relation': request.GET['person_relation']
+				}
+			})
+
+		query['bool']['must'].append(personShouldBool)
+
+
 	if ('topics' in request.GET):
 		topicsShouldBool = {
 			'nested': {
@@ -323,6 +362,11 @@ def getTopics(request):
 	else:
 		count = 100
 
+	if ('order' in request.GET):
+		order = request.GET['order']
+	else:
+		order = '_count'
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -340,7 +384,10 @@ def getTopics(request):
 							'data': {
 								'terms': {
 									'field': 'topics.terms.term',
-									'size': count
+									'size': count,
+									'order': {
+										order: 'desc'
+									}
 								},
 								'aggs': {
 									'parent_doc_count': {
@@ -354,6 +401,14 @@ def getTopics(request):
 									'probability_max': {
 										'max': {
 											'field': 'topics.terms.probability'
+										}
+									},
+									'probability_median': {
+										'percentiles': {
+											'field': 'topics.terms.probability',
+											'percents': [
+												50
+											]
 										}
 									}
 								}
@@ -374,6 +429,16 @@ def getTitleTopics(request):
 	else:
 		count = 100
 
+	if ('count' in request.GET):
+		count = request.GET['count']
+	else:
+		count = 100
+
+	if ('order' in request.GET):
+		order = request.GET['order']
+	else:
+		order = '_count'
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -391,7 +456,10 @@ def getTitleTopics(request):
 							'data': {
 								'terms': {
 									'field': 'title_topics.terms.term',
-									'size': count
+									'size': count,
+									'order': {
+										order: 'desc'
+									}
 								},
 								'aggs': {
 									'parent_doc_count': {
@@ -405,6 +473,14 @@ def getTitleTopics(request):
 									'probability_max': {
 										'max': {
 											'field': 'title_topics.terms.probability'
+										}
+									},
+									'probability_median': {
+										'percentiles': {
+											'field': 'title_topics.terms.probability',
+											'percents': [
+												50
+											]
 										}
 									}
 								}
@@ -425,11 +501,20 @@ def getCollectionYears(request):
 		'size': 0,
 		'aggs': {
 			'data': {
-				'terms': {
-					'field': 'year',
-					'size': 10000,
-					'order': {
-						'_term': 'asc'
+				'filter': {
+					'range': {
+						'year': {
+							'lte': 2020
+						}
+					}
+				},
+				'aggs': {
+					'data': {
+						'date_histogram' : {
+							'field' : 'year',
+							'interval' : 'year',
+							'format': 'yyyy'
+						}
 					}
 				}
 			}
@@ -457,12 +542,10 @@ def getBirthYears(request):
 						},
 						'aggs': {
 							'data': {
-								'terms': {
-									'field': 'persons.birth_year',
-									'size': 10000,
-									'order': {
-										'_term': 'asc'
-									}
+								'date_histogram' : {
+									'field' : 'persons.birth_year',
+									'interval' : 'year',
+									'format': 'yyyy'
 								}
 							}
 						}
@@ -482,12 +565,10 @@ def getBirthYears(request):
 						},
 						'aggs': {
 							'data': {
-								'terms': {
-									'field': 'persons.birth_year',
-									'size': 10000,
-									'order': {
-										'_term': 'asc'
-									}
+								'date_histogram' : {
+									'field' : 'persons.birth_year',
+									'interval' : 'year',
+									'format': 'yyyy'
 								}
 							}
 						}
@@ -500,12 +581,10 @@ def getBirthYears(request):
 				},
 				'aggs': {
 					'data': {
-						'terms': {
-							'field': 'persons.birth_year',
-							'size': 10000,
-							'order': {
-								'_term': 'asc'
-							}
+						'date_histogram' : {
+							'field' : 'persons.birth_year',
+							'interval' : 'year',
+							'format': 'yyyy'
 						}
 					}
 				}
@@ -948,11 +1027,37 @@ def getGender(request):
 	return esQueryResponse
 
 
+def getSimilar(request, documentId):
+	query = {
+		'query': {
+			'more_like_this' : {
+				'fields' : ['text', 'title'],
+				'like' : [
+					{
+						'_index' : 'sagenkarta',
+						'_type' : 'legend',
+						'_id' : documentId
+					}
+				],
+				'min_term_freq' : 1,
+				'max_query_terms' : 12
+			}
+		},
+		'highlight': {
+			'fields': {
+				'text': {}
+			}
+		}
+	}
+
+	esQueryResponse = esQuery(request, query)
+	return esQueryResponse
 
 
 def getDocuments(request):
 	query = {
 		'query': createQuery(request),
+		'size': 100,
 		'highlight' : {
 			'fields' : {
 				'text' : {}
