@@ -1044,8 +1044,16 @@ def getSimilar(request, documentId):
 			}
 		},
 		'highlight': {
+			'pre_tags': [
+				'<span class="highlight">'
+			],
+			'post_tags': [
+				'</span>'
+			],
 			'fields': {
-				'text': {}
+				'text': {
+					'fragment_size': 1000
+				}
 			}
 		}
 	}
@@ -1059,8 +1067,16 @@ def getDocuments(request):
 		'query': createQuery(request),
 		'size': 100,
 		'highlight' : {
+			'pre_tags': [
+				'<span class="highlight">'
+			],
+			'post_tags': [
+				'</span>'
+			],
 			'fields' : {
-				'text' : {}
+				'text' : {
+					'fragment_size': 1000
+				}
 			}
 		}
 	}
