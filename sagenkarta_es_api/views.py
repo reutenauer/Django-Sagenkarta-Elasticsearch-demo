@@ -14,6 +14,8 @@ def createQuery(request):
 	#	insamlingsår (från och till) X
 	#	insamlingsort (sockennamn, socken-id, harad, landskap, bounding box, ...)
 
+	#	liknande dokumenter X
+
 	#	person relation X
 	#	namn X
 	#	födelseår
@@ -333,6 +335,21 @@ def createQuery(request):
 
 		query['bool']['must'].append(titleTopicsShouldBool)
 
+	if ('similar' in request.GET):
+		query['bool']['must'].append({
+			'more_like_this' : {
+				'fields' : ['text', 'title'],
+				'like' : [
+					{
+						'_index' : 'sagenkarta',
+						'_type' : 'legend',
+						'_id' : request.GET['similar']
+					}
+				],
+				'min_term_freq' : 1,
+				'max_query_terms' : 500
+			}
+		})
 	return query
 
 def esQuery(request, query):
