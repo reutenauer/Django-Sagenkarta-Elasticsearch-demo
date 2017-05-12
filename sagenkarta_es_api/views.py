@@ -341,7 +341,7 @@ def createQuery(request):
 				'fields' : ['text', 'title'],
 				'like' : [
 					{
-						'_index' : 'sagenkarta',
+						'_index' : 'sagenkarta_v3',
 						'_type' : 'legend',
 						'_id' : request.GET['similar']
 					}
@@ -352,21 +352,33 @@ def createQuery(request):
 		})
 	return query
 
-def esQuery(request, query):
-	esResponse = requests.get('http://localhost:9200/sagenkarta_v2/legend/_search', data=json.dumps(query))
+def esQuery(request, query, formatFunc = None):
+	esResponse = requests.get('http://localhost:9200/sagenkarta_v3/legend/_search', data=json.dumps(query))
 	
 	responseData = esResponse.json()
 
-	if ('showQuery' in request.GET) and request.GET['showQuery']:
-		responseData['query'] = query
+	if (formatFunc):
+		outputData = {
+			'data': formatFunc(responseData)
+		}
+	else:
+		outputData = responseData
 
-	jsonResponse = JsonResponse(responseData)
+	outputData['metadata'] ={
+		'total': responseData['hits']['total'],
+		'took': responseData['took']
+	}
+
+	if ('showQuery' in request.GET) and request.GET['showQuery']:
+		outputData['metadata']['query'] = query
+
+	jsonResponse = JsonResponse(outputData)
 	jsonResponse['Access-Control-Allow-Origin'] = '*'
 
 	return jsonResponse
 
 def getDocument(request, documentId):
-	esResponse = requests.get('http://localhost:9200/sagenkarta_v2/legend/'+documentId)
+	esResponse = requests.get('http://localhost:9200/sagenkarta_v3/legend/'+documentId)
 
 	jsonResponse = JsonResponse(esResponse.json())
 	jsonResponse['Access-Control-Allow-Origin'] = '*'
@@ -374,6 +386,16 @@ def getDocument(request, documentId):
 	return jsonResponse
 
 def getTopics(request):
+	def itemFormat(item):
+		return {
+			'topic': item['key'],
+			'doc_count': item['parent_doc_count']['doc_count'],
+			'terms': item['doc_count']
+		};
+
+	def jsonFormat(json):
+		return list(map(itemFormat, json['aggregations']['data']['data']['data']['buckets']))
+
 	if ('count' in request.GET):
 		count = request.GET['count']
 	else:
@@ -409,24 +431,6 @@ def getTopics(request):
 								'aggs': {
 									'parent_doc_count': {
 										'reverse_nested': {}
-									},
-									'probability_avg': {
-										'avg': {
-											'field': 'topics.terms.probability'
-										}
-									},
-									'probability_max': {
-										'max': {
-											'field': 'topics.terms.probability'
-										}
-									},
-									'probability_median': {
-										'percentiles': {
-											'field': 'topics.terms.probability',
-											'percents': [
-												50
-											]
-										}
 									}
 								}
 							}
@@ -437,10 +441,20 @@ def getTopics(request):
 		}
 	}
 
-	esQueryResponse = esQuery(request, query)
+	esQueryResponse = esQuery(request, query, jsonFormat)
 	return esQueryResponse
 
 def getTitleTopics(request):
+	def itemFormat(item):
+		return {
+			'topic': item['key'],
+			'doc_count': item['parent_doc_count']['doc_count'],
+			'terms': item['doc_count']
+		};
+
+	def jsonFormat(json):
+		return list(map(itemFormat, json['aggregations']['data']['data']['data']['buckets']))
+
 	if ('count' in request.GET):
 		count = request.GET['count']
 	else:
@@ -509,10 +523,20 @@ def getTitleTopics(request):
 		}
 	}
 
-	esQueryResponse = esQuery(request, query)
+	esQueryResponse = esQuery(request, query, jsonFormat)
 	return esQueryResponse
 
 def getCollectionYears(request):
+	def itemFormat(item):
+		return {
+			'year': item['key_as_string'],
+			'timestamp': item['key'],
+			'doc_count': item['doc_count']
+		};
+
+	def jsonFormat(json):
+		return list(map(itemFormat, json['aggregations']['data']['data']['buckets']))
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -538,10 +562,24 @@ def getCollectionYears(request):
 		}
 	}
 
-	esQueryResponse = esQuery(request, query)
+	esQueryResponse = esQuery(request, query, jsonFormat)
 	return esQueryResponse
 
 def getBirthYears(request):
+	def itemFormat(item):
+		return {
+			'year': item['key_as_string'],
+			'timestamp': item['key'],
+			'doc_count': item['doc_count']
+		};
+
+	def jsonFormat(json):
+		return {
+			'all': list(map(itemFormat, json['aggregations']['data']['data']['buckets'])),
+			'collectors': list(map(itemFormat, json['aggregations']['collectors']['data']['data']['buckets'])),
+			'informants': list(map(itemFormat, json['aggregations']['informants']['data']['data']['buckets']))
+		}
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -609,10 +647,24 @@ def getBirthYears(request):
 		}
 	}
 
-	esQueryResponse = esQuery(request, query)
+	esQueryResponse = esQuery(request, query, jsonFormat)
 	return esQueryResponse
 
 def getCategories(request):
+	def itemFormat(item):
+		retObj = {
+			'key': item['key'],
+			'doc_count': item['doc_count']
+		}
+
+		if len(item['data']['buckets']) > 0:
+			retObj['name'] = item['data']['buckets'][0]['key']
+
+		return retObj
+
+	def jsonFormat(json):
+		return list(map(itemFormat, json['aggregations']['data']['buckets']))
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -640,10 +692,19 @@ def getCategories(request):
 		}
 	}
 
-	esQueryResponse = esQuery(request, query)
+	esQueryResponse = esQuery(request, query, jsonFormat)
 	return esQueryResponse
 
 def getTypes(request):
+	def itemFormat(item):
+		return {
+			'type': item['key'],
+			'doc_count': item['doc_count']
+		};
+
+	def jsonFormat(json):
+		return list(map(itemFormat, json['aggregations']['data']['buckets']))
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -660,10 +721,23 @@ def getTypes(request):
 		}
 	}
 
-	esQueryResponse = esQuery(request, query)
+	esQueryResponse = esQuery(request, query, jsonFormat)
 	return esQueryResponse
 
 def getSocken(request):
+	def itemFormat(item):
+		return {
+			'id': item['key'],
+			'name': item['data']['buckets'][0]['key'],
+			'harad': item['harad']['buckets'][0]['key'],
+			'landskap': item['landskap']['buckets'][0]['key'],
+			'lan': item['lan']['buckets'][0]['key'],
+			'doc_count': item['data']['buckets'][0]['doc_count']
+		};
+
+	def jsonFormat(json):
+		return list(map(itemFormat, json['aggregations']['data']['data']['buckets']))
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -722,10 +796,22 @@ def getSocken(request):
 		}
 	}
 
-	esQueryResponse = esQuery(request, query)
+	esQueryResponse = esQuery(request, query, jsonFormat)
 	return esQueryResponse
 
 def getHarad(request):
+	def itemFormat(item):
+		return {
+			'id': item['key'],
+			'name': item['data']['buckets'][0]['key'],
+			'landskap': item['landskap']['buckets'][0]['key'],
+			'lan': item['lan']['buckets'][0]['key'],
+			'doc_count': item['data']['buckets'][0]['doc_count']
+		};
+
+	def jsonFormat(json):
+		return list(map(itemFormat, json['aggregations']['data']['data']['buckets']))
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -778,10 +864,19 @@ def getHarad(request):
 		}
 	}
 
-	esQueryResponse = esQuery(request, query)
+	esQueryResponse = esQuery(request, query, jsonFormat)
 	return esQueryResponse
 
 def getLandskap(request):
+	def itemFormat(item):
+		return {
+			'name': item['key'],
+			'doc_count': item['doc_count']
+		};
+
+	def jsonFormat(json):
+		return list(map(itemFormat, json['aggregations']['data']['data']['buckets']))
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -795,20 +890,6 @@ def getLandskap(request):
 						'terms': {
 							'field': 'places.landskap',
 							'size': 10000
-						},
-						'aggs': {
-							'data': {
-								'terms': {
-									'field': 'places.county',
-									'size': 10000,
-									'order': {
-										'_term': 'asc'
-									}
-								}
-							},
-							'parent_doc_count': {
-								'reverse_nested': {}
-							},
 						}
 					}
 				}
@@ -816,10 +897,61 @@ def getLandskap(request):
 		}
 	}
 
-	esQueryResponse = esQuery(request, query)
+	esQueryResponse = esQuery(request, query, jsonFormat)
+	return esQueryResponse
+
+def getCounty(request):
+	def itemFormat(item):
+		return {
+			'name': item['key'],
+			'doc_count': item['doc_count']
+		};
+
+	def jsonFormat(json):
+		return list(map(itemFormat, json['aggregations']['data']['data']['buckets']))
+
+	query = {
+		'query': createQuery(request),
+		'size': 0,
+		'aggs': {
+			'data': {
+				'nested': {
+					'path': 'places'
+				},
+				'aggs': {
+					'data': {
+						'terms': {
+							'field': 'places.county',
+							'size': 10000
+						}
+					}
+				}
+			}
+		}
+	}
+
+	esQueryResponse = esQuery(request, query, jsonFormat)
 	return esQueryResponse
 
 def getPersons(request):
+	def itemFormat(item):
+		retObj = {
+			'id': item['key'],
+			'name': item['data']['buckets'][0]['key'],
+			'doc_count': item['doc_count']
+		}
+
+		if len(item['home']['buckets']) > 0:
+			retObj['home'] = {
+				'id': item['home']['buckets'][0]['key'],
+				'name': item['home']['buckets'][0]['data']['buckets'][0]['key']
+			}
+
+		return retObj
+
+	def jsonFormat(json):
+		return list(map(itemFormat, json['aggregations']['data']['data']['buckets']))
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -880,11 +1012,30 @@ def getPersons(request):
 		}
 	}
 
-	esQueryResponse = esQuery(request, query)
+	esQueryResponse = esQuery(request, query, jsonFormat)
 	return esQueryResponse
 
 
 def getRelatedPersons(request, relation):
+	def itemFormat(item):
+		retObj = {
+			'id': item['key'],
+			'name': item['data']['buckets'][0]['key'],
+			'doc_count': item['doc_count'],
+			'relation': item['relation']['buckets'][0]['key']
+		}
+
+		if len(item['home']['buckets']) > 0:
+			retObj['home'] = {
+				'id': item['home']['buckets'][0]['key'],
+				'name': item['home']['buckets'][0]['data']['buckets'][0]['key']
+			}
+
+		return retObj
+
+	def jsonFormat(json):
+		return list(map(itemFormat, json['aggregations']['data']['data']['data']['buckets']))
+
 	query = {
 		'query': createQuery(request),
 		'size': 0,
@@ -954,7 +1105,7 @@ def getRelatedPersons(request, relation):
 		}
 	}
 
-	esQueryResponse = esQuery(request, query)
+	esQueryResponse = esQuery(request, query, jsonFormat)
 	return esQueryResponse
 
 
@@ -1051,7 +1202,7 @@ def getSimilar(request, documentId):
 				'fields' : ['text', 'title'],
 				'like' : [
 					{
-						'_index' : 'sagenkarta',
+						'_index' : 'sagenkarta_v3',
 						'_type' : 'legend',
 						'_id' : documentId
 					}
@@ -1080,6 +1231,9 @@ def getSimilar(request, documentId):
 
 
 def getDocuments(request):
+	def jsonFormat(json):
+		return json['hits']['hits']
+
 	query = {
 		'query': createQuery(request),
 		'size': 100,
@@ -1098,5 +1252,5 @@ def getDocuments(request):
 		}
 	}
 
-	esQueryResponse = esQuery(request, query)
+	esQueryResponse = esQuery(request, query, jsonFormat)
 	return esQueryResponse

@@ -47,6 +47,9 @@ urlpatterns = [
 	# aggregate harad
 	url(r'^harad/', views.getHarad, name='getHarad'),
 
+	# aggregate län
+	url(r'^county/', views.getCounty, name='getCounty'),
+
 	# aggregate landskap
 	url(r'^landskap/', views.getLandskap, name='getLandskap'),
 
